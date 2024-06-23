@@ -26,12 +26,12 @@ spring:
     password: 123fanzy
   # Redis 配置
   # todo 需替换配置，然后取消注释
-#  redis:
-#    database: 1
-#    host: localhost
-#    port: 6379
-#    timeout: 5000
-#    password: 123456
+  redis:
+    database: 1
+    host: localhost
+    port: 6379
+    timeout: 5000
+    password: 123456
   # Elasticsearch 配置
   # todo 需替换配置，然后取消注释
 #  elasticsearch:
@@ -90,3 +90,9 @@ cos:
     secretKey: xxx
     region: xxx
     bucket: xxx
+
+# 鱼聪明AI配置
+yuapi:
+  client:
+    access-key: mu2ozda0ui2k33g3rj4devf9q3vs2q76
+    secret-key: tjojqcypad3zgnoyktrc3k8mtojqh90o

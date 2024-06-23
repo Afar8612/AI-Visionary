@@ -123,6 +123,20 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!--鱼聪明AI接口依赖-->
+        <dependency>
+            <groupId>com.yucongming</groupId>
+            <artifactId>yucongming-java-sdk</artifactId>
+            <version>0.0.3</version>
+        </dependency>
+
+        <!--Redisson分布式限流依赖-->
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+            <version>3.31.0</version>
+        </dependency>
     </dependencies>
 
     <build>
