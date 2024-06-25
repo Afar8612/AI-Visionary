@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.gson.Gson;
 import com.yupi.springbootinit.annotation.AuthCheck;
+import com.yupi.springbootinit.bizmq.BiMessageProducer;
 import com.yupi.springbootinit.common.BaseResponse;
 import com.yupi.springbootinit.common.DeleteRequest;
 import com.yupi.springbootinit.common.ErrorCode;
@@ -71,7 +72,8 @@ public class ChartController {
     @Resource
     private ThreadPoolExecutor threadPoolExecutor;
 
-    private final static Gson GSON = new Gson();
+    @Resource
+    private BiMessageProducer biMessageProducer;
 
 
     // region 增删改查
@@ -280,7 +282,7 @@ public class ChartController {
 //                "{前端 Echarts V5的 option 配置对象js代码，合理地将数据进行可视化，不要生成任何多余的内容，比如注释}\n" +
 //                "[[[[[\n" +
 //                "{明确的数据分析结论、越详细越好，不要生成多余的注释}";
-        long biModelId = 1803326881097789441L;
+        long biModelId = CommonConstant.BI_MODEL_ID;
         // 分析需求：
         // 分析用户的年龄分布
         // 原始数据：
@@ -375,7 +377,7 @@ public class ChartController {
 //                "{前端 Echarts V5的 option 配置对象js代码，合理地将数据进行可视化，不要生成任何多余的内容，比如注释}\n" +
 //                "[[[[[\n" +
 //                "{明确的数据分析结论、越详细越好，不要生成多余的注释}";
-        long biModelId = 1803326881097789441L;
+        long biModelId = CommonConstant.BI_MODEL_ID;
         // 分析需求：
         // 分析用户的年龄分布
         // 原始数据：
@@ -446,6 +448,91 @@ public class ChartController {
 
         BiResponse biResponse = new BiResponse();
         biResponse.setChartId(chart.getId());
+        return ResultUtils.success(biResponse);
+    }
+
+    /**
+     * 智能分析 （异步消息队列）
+     *
+     * @param multipartFile
+     * @param genChartByAiRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/gen/async/mq")
+    public BaseResponse<BiResponse> genChartByAiAsyncMq(@RequestPart("file") MultipartFile multipartFile,
+                                                      GenChartByAiRequest genChartByAiRequest, HttpServletRequest request) {
+        String name = genChartByAiRequest.getName();
+        String goal = genChartByAiRequest.getGoal();
+        String chartType = genChartByAiRequest.getChartType();
+        // 校验
+        ThrowUtils.throwIf(StringUtils.isBlank(goal), ErrorCode.PARAMS_ERROR, "目标为空");
+        ThrowUtils.throwIf(StringUtils.isBlank(name) && name.length() > 100, ErrorCode.PARAMS_ERROR, "名称过长");
+        // 校验文件
+        long size = multipartFile.getSize();
+        String originalFilename = multipartFile.getOriginalFilename();
+        // 校验文件大小
+        final long ONE_MB = 1024 * 1024L;
+        ThrowUtils.throwIf(size > ONE_MB, ErrorCode.PARAMS_ERROR, "文件超过 1M");
+        // 校验文件后缀 aaa.png
+        String suffix = FileUtil.getSuffix(originalFilename);
+        final List<String> validFileSuffixList = Arrays.asList("xlsx", "xls");
+        ThrowUtils.throwIf(!validFileSuffixList.contains(suffix), ErrorCode.PARAMS_ERROR, "文件后缀非法");
+
+        User loginUser = userService.getLoginUser(request);
+
+        //限流判断, 限流粒度是针对某个用户x方法限流，这里是单个用户单位时间内最多执行2次genChartByAi方法
+        redisLimiterManager.doRateLimit("genChartByAi_" + loginUser.getId());
+
+        //这里的模板直接调用api来实现
+//        final String prompt = "你是一个数据分析师和前端开发专家，接下来我会按照以下固定格式给你提供内容：\n" +
+//                "分析需求：\n" +
+//                "{数据分析的需求或者目标}\n" +
+//                "原始数据：\n" +
+//                "{csv格式的原始数据，用，作为分隔符}\n" +
+//                "请根据这两部分内容，按照以下指定格式生成内容（此外不要输出任何多余的开头、结尾、注释）\n" +
+//                "[[[[["+
+//                "{前端 Echarts V5的 option 配置对象js代码，合理地将数据进行可视化，不要生成任何多余的内容，比如注释}\n" +
+//                "[[[[[\n" +
+//                "{明确的数据分析结论、越详细越好，不要生成多余的注释}";
+        long biModelId = CommonConstant.BI_MODEL_ID;
+        // 分析需求：
+        // 分析用户的年龄分布
+        // 原始数据：
+        // 序号，用户名，年龄，地区
+        // 1号，张三，24，广东
+        // 2号，李四，22，北京
+        // 3号，王五，40，上海
+
+        //用户输入,根据上面的模板
+        StringBuilder userInput = new StringBuilder();
+        userInput.append("分析目标：").append("\n");
+
+        //拼接分析目标
+        String userGoal = goal;
+        if (StringUtils.isNotBlank(chartType)) {
+            userGoal += "，请使用" + chartType;
+        }
+        userInput.append(userGoal).append("\n");
+        //压缩后的数据
+        String csvData = ExcelUtils.excelToCsv(multipartFile);
+        userInput.append("原始数据：").append("\n");
+        userInput.append(csvData).append("\n");
+
+        //插入到数据库
+        Chart chart = new Chart();
+        chart.setName(name);
+        chart.setGoal(goal);
+        chart.setChartData(csvData);
+        chart.setChartType(chartType);
+        chart.setStatus("wait");
+        chart.setUserId(loginUser.getId());
+        boolean savaResult = chartService.save(chart);
+        ThrowUtils.throwIf(!savaResult, ErrorCode.SYSTEM_ERROR, "图表保存失败"); //抛出异常的的判断
+        long newChartId = chart.getId();
+        biMessageProducer.sendMessage(String.valueOf(newChartId)); // 消息队列提交任务
+        BiResponse biResponse = new BiResponse();
+        biResponse.setChartId(newChartId);
         return ResultUtils.success(biResponse);
     }
 

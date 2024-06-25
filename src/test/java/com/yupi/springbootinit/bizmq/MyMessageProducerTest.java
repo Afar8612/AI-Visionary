@@ -5,16 +5,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import javax.annotation.Resource;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 @SpringBootTest
-class MyMessagerProducerTest {
+class MyMessageProducerTest {
 
     @Resource
-    private MyMessagerProducer myMessagerProducer;
+    private MyMessageProducer myMessageProducer;
 
     @Test
     void sendMessage() {
-        myMessagerProducer.sendMessage("code_exchange", "my_routingKey", "hello！！！");
+        myMessageProducer.sendMessage("code_exchange", "my_routingKey", "hello！！！");
     }
 }

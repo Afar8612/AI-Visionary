@@ -6,18 +6,18 @@ import com.rabbitmq.client.ConnectionFactory;
 
 import java.nio.charset.StandardCharsets;
 
-public class SingleProducer {
+public class TtlProducer {
 
-    private final static String QUEUE_NAME = "hello";
+    private final static String QUEUE_NAME = "ttl_queue";
 
     public static void main(String[] argv) throws Exception {
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost("localhost");
+
         // 建立连接，创建频道
         try (Connection connection = factory.newConnection();
              Channel channel = connection.createChannel()) {
-            // 创建消息队列
-            channel.queueDeclare(QUEUE_NAME, false, false, false, null);
+
             // 发送消息
             String message = "Hello World!";
             channel.basicPublish("", QUEUE_NAME, null, message.getBytes(StandardCharsets.UTF_8));

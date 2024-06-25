@@ -5,35 +5,64 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
 
-public class ReceiveLogsTopic {
+public class TopicConsumer {
 
-  private static final String EXCHANGE_NAME = "topic_logs";
+    private static final String EXCHANGE_NAME = "topic-exchange";
 
-  public static void main(String[] argv) throws Exception {
-    ConnectionFactory factory = new ConnectionFactory();
-    factory.setHost("localhost");
-    Connection connection = factory.newConnection();
-    Channel channel = connection.createChannel();
+    public static void main(String[] argv) throws Exception {
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost("localhost");
+        Connection connection = factory.newConnection();
+        Channel channel = connection.createChannel();
 
-    channel.exchangeDeclare(EXCHANGE_NAME, "topic");
-    String queueName = channel.queueDeclare().getQueue();
+        channel.exchangeDeclare(EXCHANGE_NAME, "topic");
 
-    if (argv.length < 1) {
-        System.err.println("Usage: ReceiveLogsTopic [binding_key]...");
-        System.exit(1);
+        // 创建队列，随机分配一个队列名称
+        String queueName1 = "frontend_queue";
+        channel.queueDeclare(queueName1, true, false, false, null);
+        channel.queueBind(queueName1, EXCHANGE_NAME, "#.前端.#");
+
+        String queueName2 = "backend_queue";
+        channel.queueDeclare(queueName2, true, false, false, null);
+        channel.queueBind(queueName2, EXCHANGE_NAME, "#.后端.#");
+
+        String queueName3 = "product_queue";
+        channel.queueDeclare(queueName3, true, false, false, null);
+        channel.queueBind(queueName3, EXCHANGE_NAME, "#.产品.#");
+
+
+        System.out.println(" [*] Waiting for messages. To exit press CTRL+C");
+
+        DeliverCallback xiaoadeliverCallback = (consumerTag, delivery) -> {
+            String message = new String(delivery.getBody(), "UTF-8");
+            System.out.println(" [小a] Received '" +
+                    delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
+        };
+
+        DeliverCallback xiaobdeliverCallback = (consumerTag, delivery) -> {
+            String message = new String(delivery.getBody(), "UTF-8");
+            System.out.println(" [小b] Received '" +
+                    delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
+        };
+
+        DeliverCallback xiaocdeliverCallback = (consumerTag, delivery) -> {
+            String message = new String(delivery.getBody(), "UTF-8");
+            System.out.println(" [小c] Received '" +
+                    delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
+        };
+
+        DeliverCallback xiaoddeliverCallback = (consumerTag, delivery) -> {
+            String message = new String(delivery.getBody(), "UTF-8");
+            System.out.println(" [小d] Received '" +
+                    delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
+        };
+        channel.basicConsume(queueName1, true, xiaoadeliverCallback, consumerTag -> {
+        });
+        channel.basicConsume(queueName2, true, xiaobdeliverCallback, consumerTag -> {
+        });
+        channel.basicConsume(queueName3, true, xiaocdeliverCallback, consumerTag -> {
+        });
+        channel.basicConsume(queueName1, true, xiaoddeliverCallback, consumerTag -> {
+        });
     }
-
-    for (String bindingKey : argv) {
-        channel.queueBind(queueName, EXCHANGE_NAME, bindingKey);
-    }
-
-    System.out.println(" [*] Waiting for messages. To exit press CTRL+C");
-
-    DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-        String message = new String(delivery.getBody(), "UTF-8");
-        System.out.println(" [x] Received '" +
-            delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
-    };
-    channel.basicConsume(queueName, true, deliverCallback, consumerTag -> { });
-  }
 }
