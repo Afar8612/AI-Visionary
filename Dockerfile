@@ -1,7 +1,7 @@
 # Docker 镜像构建
 # @author <a href="https://github.com/liyupi">程序员鱼皮</a>
 # @from <a href="https://yupi.icu">编程导航知识星球</a>
-FROM maven:3.9.7-jdk-17-slim as builder
+FROM maven:3.9.7-eclipse-temurin-17 as builder
 
 # Copy local code to the container image.
 WORKDIR /app
